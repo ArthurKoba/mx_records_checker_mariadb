@@ -1,0 +1,2 @@
+async-dns @ git+https://github.com/gera2ld/async_dns.git@a48f0ad5d4c3d517fe62c9b26fd80b7b233c387b
+aiomysql==0.0.21
