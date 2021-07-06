@@ -7,48 +7,47 @@ from config import HOST, PORT, USER, PASSWORD, DATABASE_NAME
 
 async def main() -> None:
     connection = await create_connection(loop)
-    a = await separate_domains_from_big(connection)
+    a = await counts_mx_records_in_domains(connection)
     # with open('domains.json', 'w') as f: f.write(json.dumps(a))
     # result = await get_need_update_domains(360, connection)
     connection.close()
 
-async def separate_domains_from_big(connection):
+async def counts_mx_records_in_domains(connection):
     all_domains = await get_all_domains_and_records(connection)
-    length_all_domains = len(all_domains)
-    print(f"Len:{length_all_domains}")
-    raw_big_dict = {}
-    count = 0
-    for current_domain, current_mx_records in all_domains.items():
-        count_sub_domains = 0
-        raw_big_dict[current_domain] = {'subdomains': []}
-        # print(domain, mx_records)
-        for domain, mx_records in all_domains.items():
-            if current_mx_records == mx_records:
-                count_sub_domains += 1
-                raw_big_dict[current_domain].get('subdomains').append(domain)
-        raw_big_dict[current_domain].update(count=count_sub_domains)
+    # all_domains = {'1': [[1, 'a.b.c.google.com']]}
+    mx_servers_counts = {}
+    for domain, mx_servers in all_domains.items():
+        for mx_server in mx_servers:
+            if len(mx_server) != 2: continue
+            url = mx_server[1].lower()
+            if 'localhost' in url or not url: continue
+            sheme = url.split('.')
+            try:
+                big_domain = f"{sheme[-2]}.{sheme[-1]}"
+            except IndexError:
+                print(f"ERROR: {domain} - {url} {mx_server}")
 
-        count += 1
-        if count%100 == 0: print(f"{count}/{length_all_domains}", end='\r')
-        if count > 1000: break
+                # print(url)
 
-    sorted_big_domains_tuple = sorted(
-                raw_big_dict.items(),
-                key=lambda values: values[1]['count'],
-                reverse=True)
+            # print(big_domain)
+            # exit()
+            if mx_servers_counts.get(big_domain):
+                count = mx_servers_counts.get(big_domain)
+                mx_servers_counts.update({big_domain: count+1})
+            else:
+                mx_servers_counts.update({big_domain: 1})
 
-    sorted_big_domains = {key: value for key, value in sorted_big_domains_tuple}
+    mx_server_counts_sorted = {k: v for k, v in sorted(
+                mx_servers_counts.items(),
+                key=lambda item: item[1],reverse=True)}
 
-    for big_domain, values in sorted_big_domains.items():
-        count = values.get('count')
-        subdomains = values.get('subdomains')
-        if count > 2:
-            # print(f"big: {big_domain} - count: {count} list: {subdomains}")
-            print(f"big: {big_domain} - count: {count}")
+    # for mx_server_url, count in mx_server_counts_sorted.items():
+    #     if count > 10: print(f"big: {mx_server_url} - count: {count}")
+    return mx_servers_counts
 
 async def get_all_domains_and_records(connection):
     data = "SELECT domain, mx_records FROM domains"
-    return {response[0]:response[1] for response in await request(data, connection)}
+    return {response[0]:json.loads(response[1]) for response in await request(data, connection)}
 
 
 async def get_all_domains_in_db(connection):

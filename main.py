@@ -19,7 +19,14 @@ from datebase import (
 async def main() -> None:
     try:
         print('Starting program')
+        # list_domains = ['gmail.com']
+        # list_domains = ['diamond-lb.com']
+        #
+        # result = await get_mx_in_domains(list_domains, LIST_DNS_SERVERS[4])
+        # print(result)
+
         connection = await create_connection(loop)
+        # exit()
         # await re_create_tables(connection) #пересоздает таблицу!!!!
         # await read_emails_and_write_domains_to_db(FILENAME, connection)
 
@@ -94,7 +101,10 @@ async def get_mx(domain: str, client: DNSClient, dns_server: str = '1.1.1.1'
     result = []
     try:
         raw_list_records = await client.query(domain, types.MX, address)
-        for record in raw_list_records: result.append([*record.data.data])
+        for record in raw_list_records:
+            raw_record = record.data.data
+            if not isinstance(raw_record, tuple): raw_record = (0, raw_record)
+            if '.' in raw_record[1]: result.append([*raw_record])
     except asyncio.exceptions.TimeoutError:
         result = 'timeout'
     except asyncio.exceptions.CancelledError:
