@@ -7,8 +7,48 @@ from config import HOST, PORT, USER, PASSWORD, DATABASE_NAME
 
 async def main() -> None:
     connection = await create_connection(loop)
-    result = await get_need_update_domains(360, connection)
+    a = await separate_domains_from_big(connection)
+    # with open('domains.json', 'w') as f: f.write(json.dumps(a))
+    # result = await get_need_update_domains(360, connection)
     connection.close()
+
+async def separate_domains_from_big(connection):
+    all_domains = await get_all_domains_and_records(connection)
+    length_all_domains = len(all_domains)
+    print(f"Len:{length_all_domains}")
+    raw_big_dict = {}
+    count = 0
+    for current_domain, current_mx_records in all_domains.items():
+        count_sub_domains = 0
+        raw_big_dict[current_domain] = {'subdomains': []}
+        # print(domain, mx_records)
+        for domain, mx_records in all_domains.items():
+            if current_mx_records == mx_records:
+                count_sub_domains += 1
+                raw_big_dict[current_domain].get('subdomains').append(domain)
+        raw_big_dict[current_domain].update(count=count_sub_domains)
+
+        count += 1
+        if count%100 == 0: print(f"{count}/{length_all_domains}", end='\r')
+        if count > 1000: break
+
+    sorted_big_domains_tuple = sorted(
+                raw_big_dict.items(),
+                key=lambda values: values[1]['count'],
+                reverse=True)
+
+    sorted_big_domains = {key: value for key, value in sorted_big_domains_tuple}
+
+    for big_domain, values in sorted_big_domains.items():
+        count = values.get('count')
+        subdomains = values.get('subdomains')
+        if count > 2:
+            # print(f"big: {big_domain} - count: {count} list: {subdomains}")
+            print(f"big: {big_domain} - count: {count}")
+
+async def get_all_domains_and_records(connection):
+    data = "SELECT domain, mx_records FROM domains"
+    return {response[0]:response[1] for response in await request(data, connection)}
 
 
 async def get_all_domains_in_db(connection):
