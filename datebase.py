@@ -33,13 +33,18 @@ async def counts_mx_records_in_domains(connection):
                     target = mx_servers_counts.get(second_level_domain)
                     count = target.get('count')
                     upper_domains = target.get('upper_domains')
-                    upper_domains.update({upper_domain})
+                    count_current_upper_domain = upper_domains.get(upper_domain)
+                    if count_current_upper_domain:
+                        count_current_upper_domain +=1
+                    else: count_current_upper_domain = 1
+                    upper_domains.update({upper_domain: count_current_upper_domain})
                     mx_servers_counts.update({
-                        second_level_domain: {'count':count+1,
+                        second_level_domain: {'count': count+1,
                                               'upper_domains': upper_domains}})
                 else:
                     mx_servers_counts.update({second_level_domain: {
-                        'count': 1, 'upper_domains': {upper_domain}}})
+                        'count': 1, 'upper_domains': {upper_domain: 1}}})
+
             except IndexError:
                 raise IndexError(f"ERROR: {domain} - {url} {mx_server}")
                 # continue
@@ -52,7 +57,7 @@ async def counts_mx_records_in_domains(connection):
         count = values.get('count')
         upper_domains = values.get('upper_domains')
         if count > 100:
-            print(f"big: '{second_level_domain}', count: {count}, upper_domains: {[*upper_domains]}")
+            print(f"big: '{second_level_domain}', count: {count}, upper_domains: {upper_domains}")
     return mx_servers_counts
 
 async def get_all_domains_and_records(connection):
