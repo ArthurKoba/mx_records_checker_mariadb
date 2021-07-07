@@ -19,7 +19,6 @@ from datebase import (
 async def main() -> None:
     try:
         print('Starting program')
-        # list_domains = ['gmail.com']
         # list_domains = ['diamond-lb.com']
         #
         # result = await get_mx_in_domains(list_domains, LIST_DNS_SERVERS[4])

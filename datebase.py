@@ -14,7 +14,10 @@ async def main() -> None:
 
 async def counts_mx_records_in_domains(connection):
     all_domains = await get_all_domains_and_records(connection)
-    # all_domains = {'1': [[1, 'a.b.c.google.com']]}
+    # all_domains = {'1': [
+    #     [1, 'a.b.c.google.com'],
+    #     [1, 'a.b.c.google.net']
+    # ]}
     mx_servers_counts = {}
     for domain, mx_servers in all_domains.items():
         for mx_server in mx_servers:
@@ -22,27 +25,34 @@ async def counts_mx_records_in_domains(connection):
             url = mx_server[1].lower()
             if 'localhost' in url or not url: continue
             sheme = url.split('.')
+
             try:
-                big_domain = f"{sheme[-2]}.{sheme[-1]}"
+                second_level_domain = sheme[-2]
+                upper_domain = sheme[-1]
+                if mx_servers_counts.get(second_level_domain):
+                    target = mx_servers_counts.get(second_level_domain)
+                    count = target.get('count')
+                    upper_domains = target.get('upper_domains')
+                    upper_domains.update({upper_domain})
+                    mx_servers_counts.update({
+                        second_level_domain: {'count':count+1,
+                                              'upper_domains': upper_domains}})
+                else:
+                    mx_servers_counts.update({second_level_domain: {
+                        'count': 1, 'upper_domains': {upper_domain}}})
             except IndexError:
-                print(f"ERROR: {domain} - {url} {mx_server}")
-
-                # print(url)
-
-            # print(big_domain)
-            # exit()
-            if mx_servers_counts.get(big_domain):
-                count = mx_servers_counts.get(big_domain)
-                mx_servers_counts.update({big_domain: count+1})
-            else:
-                mx_servers_counts.update({big_domain: 1})
+                raise IndexError(f"ERROR: {domain} - {url} {mx_server}")
+                # continue
 
     mx_server_counts_sorted = {k: v for k, v in sorted(
                 mx_servers_counts.items(),
-                key=lambda item: item[1],reverse=True)}
+                key=lambda item: item[1].get('count'),reverse=True)}
 
-    # for mx_server_url, count in mx_server_counts_sorted.items():
-    #     if count > 10: print(f"big: {mx_server_url} - count: {count}")
+    for second_level_domain, values in mx_server_counts_sorted.items():
+        count = values.get('count')
+        upper_domains = values.get('upper_domains')
+        if count > 100:
+            print(f"big: '{second_level_domain}', count: {count}, upper_domains: {[*upper_domains]}")
     return mx_servers_counts
 
 async def get_all_domains_and_records(connection):
